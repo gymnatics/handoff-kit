@@ -1,0 +1,168 @@
+---
+name: session-handoff
+description: >-
+  Bidirectional work transfer between AI coding tools (Cursor, Claude Code,
+  Codex, or any other). Handles incoming handoffs (pick up work from another
+  session, with Sol review before continuing) and outgoing handoffs (produce
+  a handoff.md for another session). Use when the user mentions handing off,
+  continuing from Cursor, continuing from Claude Code, picking up where they
+  left off, transferring work to or from another AI tool, or references a
+  handoff.md or HANDOFF.md file.
+---
+
+# Session Handoff (Codex)
+
+Bidirectional work transfer between AI coding tools. Incoming handoffs
+include a Sol review phase before the executor continues.
+
+## Handoff File Format
+
+The standardized `handoff.md` lives at the project root. Template:
+
+```
+<!-- Generated: YYYY-MM-DDTHH:MM:SS+TZ -->
+<!-- Git HEAD: abc1234 -->
+<!-- Source: cursor | claude-code | codex -->
+# Handoff — [Task Title]
+
+## Original Task
+[one-sentence description]
+
+<!-- DURABLE — valid even when progress is outdated -->
+
+## Architecture
+[system design, key components, tech stack]
+
+## Repo and Access
+[clone path, remote URLs, auth, branch conventions]
+
+## Gotchas
+[hard-won lessons, constraints, failed approaches not to retry]
+
+## Key Files
+[important files and their purpose]
+
+<!-- VOLATILE — must match current git state to be trusted -->
+
+## Plan
+- [x] Step 1: ...
+- [ ] Step 2: ... (current)
+
+## Files Changed
+- path/to/file — what changed
+
+## Current State
+[what works, what does not]
+
+## Blockers
+[anything stopping progress]
+
+## Next Steps
+[what to do next, starting from which step]
+
+## Context
+[decisions, constraints for the next session]
+```
+
+Sections above the VOLATILE comment stay useful even when stale.
+Sections below it must match git state — discard if stale.
+
+## Direction A — Incoming Handoff
+
+### Tier 1: handoff.md exists
+
+1. Check project root for `handoff.md` or `HANDOFF.md`.
+2. **Staleness check:**
+   - Read `Generated:` timestamp and `Git HEAD:` hash from the metadata.
+   - Compare against `git log -1 --format=%ci` and
+     `git rev-parse --short HEAD`.
+   - If HEAD hash mismatch or mtime predates latest commit, flag as
+     **likely stale**.
+3. **Always confirm with the user:**
+   - Fresh: "Found handoff.md from [time]. Continue this task?"
+   - Stale: "This handoff.md looks outdated (written at [time], HEAD was
+     [old] but now [new]). Current task or leftover?"
+4. If confirmed current -> use fully.
+5. If stale -> **partial trust**: keep durable sections (architecture,
+   gotchas, access, key files) as background. Discard volatile sections
+   (plan progress, next steps). Fall through to Tier 2.
+
+### Tier 2: Reconstruct from evidence
+
+When no handoff.md exists, or volatile sections were discarded as stale:
+
+1. Ask the user to describe the task. Also ask what they remember about
+   decisions, failed approaches, and context.
+2. Read raw state from the local project:
+   - `git log --oneline -10`
+   - `git diff` and `git diff --cached`
+   - `git branch`
+   - `find . -mmin -60 -type f` (recently modified files)
+   - Check for plan files, AGENTS.md, README
+3. Reconstruct task and plan from evidence. Verify with user.
+4. Flag uncertainty: "I am inferring step N was done based on git log
+   -- confirm?"
+
+### Review Phase (after Tier 1 or 2)
+
+Before continuing with new work, delegate to `sol-planner` for a review
+of the incoming work. This catches issues from token-limited or weaker
+model sessions before the executor builds on top of them.
+
+1. Delegate to `sol-planner` with:
+   - The handoff context (durable + reconstructed volatile sections)
+   - `git diff` of work done since the last known-good state (use the
+     Git HEAD from the handoff metadata as the base)
+   - Prompt: "Review this incoming work from [source tool]. Check for:
+     correctness issues, missed edge cases, deviations from project
+     conventions (see AGENTS.md), anything that should be fixed before
+     building on top of it. Then produce a plan for the remaining work."
+2. Sol returns one of:
+   - **LGTM**: "Incoming work looks sound. Plan for remaining steps:
+     [numbered plan with verification commands]"
+   - **Issues**: "Found N issues: [list]. Revised plan: fix these first,
+     then continue with [remaining steps]"
+3. Show the review result to the user for confirmation before executing.
+4. Hand approved plan to `luna-executor`.
+
+### After receiving
+
+- Restate task and plan for confirmation before making changes.
+- Never redo completed work — verify via file/git state first.
+- Follow the original plan if one exists rather than re-planning.
+- Report: "Picking up from step N. Sol review: [LGTM / N issues fixed]."
+
+## Direction B — Outgoing Handoff
+
+When the user wants to continue work in another tool:
+
+1. **Generate handoff.md** from the current session:
+   - Original task (from conversation context or AGENTS.md)
+   - Plan and progress (from conversation or project docs)
+   - Files changed (`git diff`, `git log`)
+   - Blockers, decisions, context
+   - Fill the template above with metadata:
+     - `Generated:` — current ISO 8601 timestamp
+     - `Git HEAD:` — `git rev-parse --short HEAD`
+     - `Source: codex`
+
+2. **Deliver the file** — choose based on context (ask user if unclear):
+   - **SSH write** (cross-machine, SSH available): write directly to the
+     remote project root via SSH.
+   - **Git commit+push** (cross-machine, no SSH, shared repo): commit
+     with message "[handoff] ..." and push. Tell user to `git pull`.
+   - **Local write** (same machine, different tool): save to project root.
+
+3. **Always also show in chat** — display the full handoff in a code
+   block for copy-paste regardless of delivery method.
+
+4. Suggest the receiving session "keep handoff.md updated as you work."
+
+## Rules
+
+- handoff.md format is tool-agnostic.
+- For outgoing: include enough context for zero prior knowledge.
+- Never redo completed work — verify state first.
+- Follow the original plan if one exists.
+- Report which tier was used, review result, and confidence level.
+- The review phase only runs on incoming handoffs, not outgoing.
