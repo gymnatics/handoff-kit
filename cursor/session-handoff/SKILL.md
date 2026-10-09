@@ -9,7 +9,7 @@ description: >-
   transferring work to or from another AI tool, passing work to another
   session, says "session handoff", or references a handoff.md or HANDOFF.md
   file. Also trigger when the user asks to continue work from a remote
-  machine, SSH session, Mac mini, or another device.
+  machine, SSH session, remote server, or another device.
 disable-model-invocation: false
 ---
 
@@ -138,7 +138,7 @@ When the user wants to continue work in another tool:
 2. **Deliver the file** — choose based on context (ask user if unclear):
    - **SSH write** (cross-machine, SSH available): write directly to the
      remote project root via SSH. Best for common case (e.g. Cursor on
-     laptop to Claude Code on Mac mini). Ask user for SSH host and project
+     laptop to Claude Code on a remote server). Ask user for SSH host and project
      path if not already known from an earlier incoming handoff.
    - **Git commit+push** (cross-machine, no SSH, shared repo): commit
      handoff.md with message "[handoff] ..." and push. Tell the user to

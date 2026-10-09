@@ -117,7 +117,7 @@ cp -r codex/skills/session-handoff/ ~/.agents/skills/session-handoff/
 ### Hand off FROM Cursor to Claude Code/Codex
 
 In Cursor, say:
-> "Hand off this work to Claude Code on the Mac mini at `ssh user@host`"
+> "Hand off this work to Claude Code on the remote server at `ssh user@host`"
 
 The skill generates `handoff.md` and delivers it via SSH, git push, or shows it for copy-paste.
 
