@@ -3,18 +3,18 @@ name: session-handoff
 description: >-
   Bidirectional work transfer between AI coding tools (Cursor, Claude Code,
   Codex, or any other). Handles incoming handoffs (pick up work from another
-  session, with Opus review before continuing) and outgoing handoffs (produce
-  a handoff.md for another session). Use when the user mentions handing off,
-  continuing from Cursor, continuing from Codex, picking up where they left
-  off, transferring work to or from another AI tool, or references a
-  handoff.md or HANDOFF.md file.
+  session, with Opus review of plan and code before continuing) and outgoing
+  handoffs (produce a handoff.md with full embedded plan for another session).
+  Use when the user mentions handing off, continuing from Cursor, continuing
+  from Codex, picking up where they left off, transferring work to or from
+  another AI tool, or references a handoff.md or HANDOFF.md file.
 disable-model-invocation: false
 ---
 
 # Session Handoff
 
 Bidirectional work transfer between AI coding tools. Incoming handoffs
-include an Opus review phase before the executor continues.
+include an Opus review phase (plan + code) before the executor continues.
 
 ## Handoff File Format
 
@@ -46,14 +46,27 @@ The standardized `handoff.md` lives at the project root. Template:
 <!-- VOLATILE — must match current git state to be trusted -->
 
 ## Plan
-- [x] Step 1: ...
-- [ ] Step 2: ... (current)
+
+Goal: <one-line goal>
+
+### Steps
+1. <action>
+   - Files: <paths>
+   - Verify: `<exact command>` -- expected: <what success looks like>
+   - Status: done | in-progress | not started
+2. ...
+
+### Edge cases / risks
+- ...
+
+### Final verification
+- `<exact command(s)>`
 
 ## Files Changed
 - path/to/file — what changed
 
 ## Current State
-[what works, what doesn't]
+[what works, what does not]
 
 ## Blockers
 [anything stopping progress]
@@ -101,31 +114,37 @@ When no handoff.md exists, or volatile sections were discarded as stale:
    - `find . -mmin -60 -type f` (recently modified files)
    - Check for plan files, PRD, CLAUDE.md, README
 3. Reconstruct task and plan from evidence. Verify with user.
-4. Flag uncertainty: "I'm inferring step N was done based on git log
-   — confirm?"
+4. Flag uncertainty: "I am inferring step N was done based on git log
+   -- confirm?"
 
 ### Review Phase (after Tier 1 or 2)
 
 Before continuing with new work, delegate to `opus-planner` for a review
-of the incoming work. This catches issues from token-limited or weaker
-model sessions before the executor builds on top of them.
+of both the incoming plan AND any implemented code. This catches plan
+weaknesses and code issues from token-limited or weaker model sessions
+before the executor builds on top of them.
 
 1. Delegate to `opus-planner` with:
    - The handoff context (durable + reconstructed volatile sections)
+   - The full embedded plan from the handoff
    - `git diff` of work done since the last known-good state (use the
-     Git HEAD from the handoff metadata as the base, or ask the user
-     which commit marks the boundary)
-   - Prompt: "Review this incoming work from [source tool]. Check for:
+     Git HEAD from the handoff metadata as the base)
+   - Prompt: "Review this incoming work AND its plan from [source tool].
+     For the PLAN: check if steps are correctly ordered, verification
+     commands are valid for this project, edge cases are covered, and
+     nothing critical is missing. For IMPLEMENTED CODE: check for
      correctness issues, missed edge cases, deviations from project
-     conventions (see CLAUDE.md), anything that should be fixed before
-     building on top of it. Then produce a plan for the remaining work."
+     conventions (see CLAUDE.md). Then either confirm the existing plan
+     for remaining steps (if sound) or produce a revised plan with
+     corrections."
 2. Opus returns one of:
-   - **LGTM**: "Incoming work looks sound. Plan for remaining steps:
-     [numbered plan with verification commands]"
-   - **Issues**: "Found N issues: [list]. Revised plan: fix these first,
-     then continue with [remaining steps]"
+   - **LGTM**: "Plan and code look sound. Remaining steps: [plan]"
+   - **Plan issues**: "Plan needs adjustment: [issues]. Revised plan:
+     [corrected steps with verification commands]"
+   - **Code issues**: "Found N code issues: [list]. Revised plan: fix
+     these first, then continue with [remaining steps]"
 3. Show the review result to the user for confirmation (same as
-   planning-workflow Phase 2 — confirm before executing).
+   planning-workflow Phase 2 -- confirm before executing).
 4. Hand approved plan to `sonnet-executor`.
 
 ### After receiving
@@ -141,7 +160,12 @@ When the user wants to continue work in another tool:
 
 1. **Generate handoff.md** from the current session:
    - Original task (from conversation context or CLAUDE.md/PRD)
-   - Plan and progress (from conversation or project docs)
+   - **Full plan**: extract the complete plan from the opus-planner
+     output in this conversation — steps with file targets, verification
+     commands, edge cases, and assumptions. Embed it verbatim in the
+     Plan section. Mark each step status (done/in-progress/not started)
+     based on git state and conversation context. If no plan exists in
+     the conversation, reconstruct from project state.
    - Files changed (`git diff`, `git log`)
    - Blockers, decisions, context
    - Fill the template above with metadata:
@@ -151,8 +175,7 @@ When the user wants to continue work in another tool:
 
 2. **Deliver the file** — choose based on context (ask user if unclear):
    - **SSH write** (cross-machine, SSH available): write directly to the
-     remote project root via SSH. Ask user for SSH host and project path
-     if not known.
+     remote project root via SSH.
    - **Git commit+push** (cross-machine, no SSH, shared repo): commit
      with message "[handoff] ..." and push. Tell user to `git pull`.
    - **Local write** (same machine, different tool): save to project root.

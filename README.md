@@ -49,7 +49,7 @@ handoff.md exists? ──Yes──► Staleness check (HEAD hash + timestamp)
   ┌──────────────────────────────────┐
   │  Review Phase (Claude Code/Codex) │
   │  Stronger model audits incoming   │
-  │  work before executor continues   │
+  │  plan + code before executing     │
   └──────────────────────────────────┘
                   │
                   ▼
@@ -126,7 +126,7 @@ The skill generates `handoff.md` and delivers it via SSH, git push, or shows it 
 In the receiving tool, say:
 > "Pick up where Cursor left off"
 
-The skill reads `handoff.md`, checks for staleness, runs an Opus/Sol review of the incoming work, then continues with the executor.
+The skill reads `handoff.md`, checks for staleness, runs an Opus/Sol review of the incoming **plan and code**, then continues with the executor.
 
 ### Hand off FROM Claude Code/Codex back to Cursor
 

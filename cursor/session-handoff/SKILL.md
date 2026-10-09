@@ -48,8 +48,21 @@ The standardized `handoff.md` lives at the project root. Template:
 <!-- VOLATILE — must match current git state to be trusted -->
 
 ## Plan
-- [x] Step 1: ...
-- [ ] Step 2: ... (current)
+
+Goal: <one-line goal>
+
+### Steps
+1. <action>
+   - Files: <paths>
+   - Verify: `<exact command>` -- expected: <what success looks like>
+   - Status: done | in-progress | not started
+2. ...
+
+### Edge cases / risks
+- ...
+
+### Final verification
+- `<exact command(s)>`
 
 ## Files Changed
 - path/to/file — what changed
@@ -127,7 +140,14 @@ When the user wants to continue work in another tool:
 
 1. **Generate handoff.md** from the current session:
    - Original task (from conversation context)
-   - Plan and progress (from `.cursor/plans/*.plan.md` or conversation)
+   - **Full plan**: read the active plan from `.cursor/plans/*.plan.md`
+     (most recently modified). Extract the complete plan — steps with
+     file targets, verification commands, edge cases, and assumptions.
+     Embed it verbatim in the Plan section. Mark each step's status
+     (done/in-progress/not started) based on git state and conversation
+     context. If no plan file exists, reconstruct from conversation.
+     For Claude Code, extract the plan from the opus-planner's output
+     in the conversation. For Codex, from the sol-planner's output.
    - Files changed (`git diff`, `git log`)
    - Blockers, decisions, context
    - Fill the template above with metadata:
