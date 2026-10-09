@@ -79,6 +79,7 @@ handoff-kit/
 │   └── skills/
 │       └── session-handoff/
 │           └── SKILL.md          # Codex handoff skill (+ sol review)
+├── generate-handoff.sh           # Zero-AI fallback generator
 └── install.sh                    # Symlink installer
 ```
 
@@ -133,6 +134,24 @@ The skill reads `handoff.md`, checks for staleness, runs an Opus/Sol review of t
 > "Create a handoff for Cursor"
 
 Same flow in reverse.
+
+### Zero-AI fallback (all tokens exhausted)
+
+When every AI tool is out of tokens, use the included script:
+
+```bash
+./generate-handoff.sh [project-path]
+```
+
+The script:
+1. Reads git state automatically (HEAD, branch, log, diff, remotes, changed files)
+2. Detects which tool environment you're in (Claude Code, Codex, Cursor, or manual)
+3. Prompts you for the human-context parts (task description, next step, gotchas)
+4. Pre-fills a plan from recent commit messages
+5. Generates `handoff.md` and opens it in `$EDITOR` for final review
+6. Prints delivery instructions (scp, git push, or clipboard copy)
+
+No AI tokens required — just bash + git.
 
 ## Model Mapping
 
