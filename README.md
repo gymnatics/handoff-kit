@@ -153,6 +153,27 @@ The script:
 
 No AI tokens required — just bash + git.
 
+## Planning Workflow Escalation (Claude Code)
+
+The `planning-workflow` skill delegates the approved plan to `sonnet-executor` together with a short **context digest** (approval notes, constraints you stated, the planner's risks). Subagents start with fresh context and do not see your conversation, so the digest is how those constraints reach the executor.
+
+When something fails, it escalates in at most two rounds:
+
+1. **Round 1 (advisor):** if the executor stops on a step, it is re-run from that step with the failure output and an instruction to consult the advisor before retrying.
+2. **Round 2 (replan):** if that still fails, or the advisor is unavailable, `opus-planner` diagnoses the failure and produces a revised plan, which the executor then runs.
+
+Failures in the final verification (Phase 4) skip Round 1 and go straight to the replan, since there is no single step to retry.
+
+Tradeoff: one full `opus-planner` replan instead of two, in exchange for a cheaper advisor-guided retry first.
+
+The advisor is configured in `~/.claude/settings.json`:
+
+```json
+{ "advisorModel": "opus" }
+```
+
+This setting is experimental and Anthropic-API only. Without it, the workflow falls back to Round 2.
+
 ## Model Mapping
 
 | Role | Claude Code | Codex | Purpose |

@@ -24,17 +24,17 @@ If the planner returns a `NEEDS INPUT` block (e.g. no verification command could
 For a non-trivial task (more than one file, behaviour changes, or anything destructive or hard to reverse), show the user the plan and wait for approval before executing. For a trivial task, state the plan briefly and proceed.
 
 ## Phase 3 — Execute
-Delegate to the `sonnet-executor` subagent with the approved plan **verbatim**. It implements one step at a time and runs that step's verification. It stops at the first failure and reports it.
+Delegate to the `sonnet-executor` subagent with the approved plan **verbatim**, PLUS a short context digest: user approval notes and changes requested at the gate, constraints the user stated in conversation, and the planner's edge cases/risks. Subagents start with fresh context and don't see this conversation, so the digest is the only way these constraints reach the executor. It implements one step at a time and runs that step's verification. It stops at the first failure and reports it.
 
 ## Phase 4 — Verify
 Once the executor reports all steps done, run the plan's full/final verification command(s) yourself in the main thread and read the output.
 
 ## Phase 5 — Escalate (max 2 rounds)
-On any failure (executor stop or Phase 4 failure):
-1. Send the plan, the step that failed, and the exact failure output to `opus-planner` for diagnosis and a revised plan, covering the remaining or corrected steps.
-2. Re-run `sonnet-executor` with the revised plan, then Phase 4 again.
+- **Executor stop → Round 1 (advisor):** re-run `sonnet-executor` from the failed step with the plan, the context digest, the exact failure output, and an instruction to consult the advisor before retrying. Then Phase 4. Go to Round 2 if it still fails, if the report shows `Advisor consulted: no`, or if the advisor is unavailable (it is experimental and Anthropic-API only; configured via `advisorModel` in settings).
+- **Phase 4 (final verification) failure:** skip Round 1 and go straight to Round 2, because there is no single step to retry and an unguided fix invites improvising.
+- **Round 2 (replan):** send the plan, the failed step, the exact failure output, and the round-1 report if any, to `opus-planner` for diagnosis and a revised plan covering remaining/corrected steps. Re-run `sonnet-executor` with it (plus the digest), then Phase 4.
 
-Stop after **2 escalation rounds**. If it is still failing, stop and report to the user: what was done, what failed, the failure output, and the planner's latest diagnosis. Do not loop further.
+Stop after Round 2. If still failing, report to the user: what was done, what failed, the failure output, the advisor's guidance if any, and the planner's latest diagnosis. Do not loop further.
 
 ## Final report
-List the files changed, the verification commands run with their results, the number of escalation rounds used, and any unresolved risks.
+List the files changed, the verification commands run with their results, the number of escalation rounds used, which escalation path was used, whether the advisor was consulted, and any unresolved risks.
