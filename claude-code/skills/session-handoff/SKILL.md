@@ -145,7 +145,11 @@ before the executor builds on top of them.
      these first, then continue with [remaining steps]"
 3. Show the review result to the user for confirmation (same as
    planning-workflow Phase 2 -- confirm before executing).
-4. Hand approved plan to `sonnet-executor`.
+4. Execute the approved plan using `planning-workflow` Phases 3-5: hand
+   it to `sonnet-executor` verbatim plus a context digest (the handoff's
+   Gotchas, Context, and Blockers, the review's risks, and any changes
+   the user requested), verify in the main thread, and escalate per
+   Phase 5 (advisor round, then opus-planner replan) on failure.
 
 ### After receiving
 
