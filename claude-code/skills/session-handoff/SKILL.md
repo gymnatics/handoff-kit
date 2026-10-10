@@ -178,7 +178,10 @@ When the user wants to continue work in another tool:
      - `Git HEAD:` — `git rev-parse --short HEAD`
      - `Source: claude-code`
 
-2. **Deliver the file** — choose based on context (ask user if unclear):
+2. **Deliver the file** — always ask the user which tool the work is
+   going to (Cursor, Codex, a new Claude Code session, other) and how to
+   deliver it. Never infer either from context, even if one option looks
+   obvious. Options:
    - **SSH write** (cross-machine, SSH available): write directly to the
      remote project root via SSH.
    - **Git commit+push** (cross-machine, no SSH, shared repo): commit
