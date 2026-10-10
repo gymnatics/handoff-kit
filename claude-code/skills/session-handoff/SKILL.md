@@ -6,8 +6,9 @@ description: >-
   session, with Opus review of plan and code before continuing) and outgoing
   handoffs (produce a handoff.md with full embedded plan for another session).
   Use when the user mentions handing off, continuing from Cursor, continuing
-  from Codex, picking up where they left off, transferring work to or from
-  another AI tool, or references a handoff.md or HANDOFF.md file.
+  from Codex, picking up where they left off, continuing in a new Claude Code
+  session (context full, fresh start), transferring work to or from another
+  AI tool, or references a handoff.md or HANDOFF.md file.
 disable-model-invocation: false
 ---
 
@@ -183,11 +184,33 @@ When the user wants to continue work in another tool:
    - **Git commit+push** (cross-machine, no SSH, shared repo): commit
      with message "[handoff] ..." and push. Tell user to `git pull`.
    - **Local write** (same machine, different tool): save to project root.
+   - **Claude Code → new Claude Code session** (same machine, same tool):
+     use Local write, then see "Claude Code to Claude Code" below.
 
 3. **Always also show in chat** — display the full handoff in a code
    block for copy-paste regardless of delivery method.
 
 4. Suggest the receiving session "keep handoff.md updated as you work."
+
+### Claude Code to Claude Code (new session)
+
+Use when the user wants a fresh Claude Code session (context full,
+model switch, restart) to continue this work. The receiving session
+shares `~/.claude` (agents, skills, settings, auto-memory) and the repo,
+so the handoff only needs what lives in the conversation:
+
+- Save to the project root (Local write), with `Source: claude-code`.
+- Do not duplicate memory, CLAUDE.md, or skill content; reference them.
+- Include the approved plan file path (e.g. `~/.claude/plans/<name>.md`)
+  under Key Files, plus the plan verbatim as usual.
+- Record in-flight delegation state: subagents run or still running,
+  their reports and verdicts, and uncommitted or unpushed commits
+  (`git status -sb`, clone paths outside the repo).
+- Record approvals already given and actions still needing the user's
+  approval (e.g. "push to public repo not yet approved").
+- Tell the user to start the new session in the same directory and run
+  `/session-handoff`. The receiving side then follows Direction A as
+  usual; HEAD will normally match, so Tier 1 applies.
 
 ## Rules
 
